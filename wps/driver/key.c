@@ -28,6 +28,7 @@
 #include "mem.h"
 #include "gpio.h"
 #include "user_interface.h"
+#include "esp_missing.h"
 
 #include "driver/key.h"
 
