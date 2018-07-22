@@ -28,8 +28,9 @@
 #include "mem.h"
 #include "gpio.h"
 #include "user_interface.h"
+#include "esp_missing.h"
 
-#include "driver/key.h"
+#include "key.h"
 
 LOCAL void key_intr_handler(void *arg);
 

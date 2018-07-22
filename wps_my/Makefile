@@ -155,7 +155,7 @@ endif
 # Basic project settings
 
 # which modules (subdirectories) of the project to include in compiling
-MODULES	= user modules mqtt
+MODULES	= user driver
 
 # USER_LIBS defined to forche rebuild on changes
 USER_LIBS +=
