@@ -158,69 +158,82 @@ endif
 # --------------------------------------------------------------------------
 # compiler flags using during compilation of source files
 
-CFLAGS   += \
-            -std=gnu99\
-            -Werror \
-            -Wpointer-arith \
-            -Wundef \
-            -Wl,-EL \
-            -fno-inline-functions \
-            -nostdlib \
-            -mlongcalls \
-            -mtext-section-literals \
-            -ffunction-sections \
-            -fdata-sections \
-            -fno-builtin-printf \
-            -fno-jump-tables \
-            -Wno-address \
-            -Wno-error=unused-function \
-            -Wno-error=unused-but-set-variable \
-            -Wno-error=unused-variable \
-            -Wno-error=deprecated-declarations \
-            -Wextra \
-            -Wno-unused-parameter \
-            -Wno-sign-compare \
-            -Wno-missing-field-initializers \
-            -D__ets__ \
-            -DICACHE_FLASH
+CFLAGS  += \
+           -std=gnu99 \
+           -nostdlib \
+           -mlongcalls \
+           -mtext-section-literals \
+           -ffunction-sections \
+           -fdata-sections \
+           -fno-inline-functions \
+           -fno-builtin-printf \
+           -fno-jump-tables \
+           -Wall \
+           -Werror \
+           -Wundef \
+           -Wl,-EL \
+           -Wextra \
+           -Wpointer-arith \
+           -Wno-error=unused-function \
+           -Wno-error=unused-variable \
+           -Wno-error=unused-but-set-variable \
+           -Wno-error=deprecated-declarations \
+           -Wno-error=switch \
+           -Wno-error=pointer-sign \
+           -Wno-error=return-type \
+           -Wno-error=format \
+           -Wno-error=comment
 
-#            -mno-serialize-volatile \
 
-CXXFLAGS += \
-            -g \
-            -Wpointer-arith \
-            -Wundef \
-            -Werror \
-            -Wl,-EL \
-            -fno-inline-functions \
-            -nostdlib \
-            -mlongcalls \
-            -mtext-section-literals \
-            -mno-serialize-volatile \
-            -D__ets__ \
-            -fno-rtti \
-            -fno-exceptions \
-            -DICACHE_FLASH
+CFLAGS  += \
+           -Wno-address \
+           -Wno-unused-function \
+           -Wno-unused-variable \
+           -Wno-unused-parameter \
+           -Wno-sign-compare \
+           -Wno-missing-field-initializers \
+           -Wno-switch \
+           -Wno-comment
 
-ifeq ("$(DEBUG_USE_GDB)", "yes")
-   CFLAGS   += \
-               -Og \
-               -ggdb \
-               -DDEBUG_USE_GDB
+CFLAGS  += \
+           -Werror=unknown-pragmas \
+           -Wno-unknown-pragmas \
+           -Wno-pointer-sign \
+           -Wno-return-type \
+           -Wno-format
 
-   CXXFLAGS += \
-               -Og \
-               -ggdb \
-               -DDEBUG_USE_GDB
+CFLAGS  += \
+           -D__ets__ \
+           -DICACHE_FLASH \
+           -DUSE_OPTIMIZE_PRINTF
+
+ifeq ("$(RELEASE)","yes")
+   CFLAGS  += \
+              -Os \
+              -DNDEBUG
 else
-   CFLAGS   += \
-               -Os
+   CFLAGS  += \
+              -DDEBUG
 
-   CXXFLAGS += \
-               -Os
+   ifeq ("$(DEBUG_USE_GDB)","yes")
+      CFLAGS  += \
+                 -Og \
+                 -ggdb \
+                 -DDEBUG_USE_GDB
+   endif
 endif
 
+# --------------------------------------------------------------------------
+#
+
+CXXFLAGS += $(CFLAGS) \
+            -fno-rtti \
+            -fno-exceptions \
+            -mno-serialize-volatile \
+
+# --------------------------------------------------------------------------
 # linker flags used to generate the main object file
+
 LDFLAGS += \
         -nostdlib \
         -Wl,--no-check-sections \
@@ -322,6 +335,9 @@ ifneq ("$(EXTRA_LD_SCRIPTS)","")
    _EXTRA_LD_SCRIPTS := $(addprefix -T,$(EXTRA_LD_SCRIPTS))
 endif
 
+COMPONENT_LINKER_DEPS  ?=
+EXTRA_LDFLAGS          ?=
+
 # --------------------------------------------------------------------------
 # we create two different files for uploading into the flash
 # these are the names and options to generate them
@@ -354,6 +370,8 @@ else
    endif
 endif
 
+# --------------------------------------------------------------------------
+
 vpath %.c $(SRC_DIR)
 vpath %.cpp $(SRC_DIR)
 vpath %.S $(SRC_DIR)
@@ -370,8 +388,8 @@ $(BUILD_DIR_BASE)$1/%.o: $$(SOURCE_DIR_BASE)$1/%.c
 	$(Q)      $(CC) -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $$(CFLAGS) -c $$< -o $$@
 $(BUILD_DIR_BASE)$1/%.o: $$(SOURCE_DIR_BASE)$1/%.cpp
 	$(vecho) "C+ $$<"
-	$(cecho) "$(CXX) -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CXXFLAGS)  -c $$< -o $$@"
-	$(Q)      $(CXX) -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $(CXXFLAGS)  -c $$< -o $$@
+	$(cecho) "$(CXX) -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $$(CXXFLAGS) -c $$< -o $$@"
+	$(Q)      $(CXX) -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $$(CXXFLAGS) -c $$< -o $$@
 $(BUILD_DIR_BASE)$1/%.o: $$(SOURCE_DIR_BASE)$1/%.S
 	$(vecho) "ASM $$<"
 	$(cecho) "$(CC) -D__ASSEMBLER__ -MMD -MP $(INCDIR) $(MODULE_INCDIR) $(EXTRA_INCDIR) $(SDK_INCDIR) $$(CFLAGS) -c $$< -o $$@"
@@ -488,9 +506,6 @@ check:
 # ifeq ($(app), 0)
 	@echo "Program size $$(stat -c '%s' $(FW_DIR_BASE)$(TARGET)_0x10000.bin) allowed $$(( $(MAX_PROG_SIZE) )) "
 	$(Q) if [ $$(stat -c '%s' $(FW_DIR_BASE)$(TARGET)_0x10000.bin) -gt $$(( $(MAX_PROG_SIZE) )) ]; then echo "program binary too big!"; false; fi
-
-	@echo "EPSFS size $$(stat -c '%s' $(BUILD_DIR_BASE)libesphttpd/webpages.espfs) allowed $$(( $(ESPFS_SIZE) )) "
-	$(Q) if [ $$(stat -c '%s' $(BUILD_DIR_BASE)libesphttpd/webpages.espfs) -gt $$(( $(ESPFS_SIZE) )) ]; then echo "webpages.espfs too big!"; false; fi
 # else
 #   ifeq ($(boot), none)
 #   else
@@ -499,29 +514,30 @@ check:
 
 showdirs:
 	@echo "-----------------------------------------"
-	@echo "    TARGET:         "$(TARGET)
-	@echo "    TARGET_DEVICE:  "$(TARGET_DEVICE)
-	@echo "    TARGET_OUT:     "$(TARGET_OUT)
-	@echo "    USER_LIBS:      "$(USER_LIBS)
-	@echo "    BUILD_DIR_BASE: "$(BUILD_DIR_BASE)
-	@echo "    BUILD_DIR:      "$(BUILD_DIR)
-	@echo "    FW_DIR_BASE:    "$(FW_DIR_BASE)
-	@echo "    SRC_DIR:        "$(SRC_DIR)
-	@echo "    C_SRC:          "$(C_SRC)
-	@echo "    CPP_SRC:        "$(CPP_SRC)
-	@echo "    ASM_SRC:        "$(ASM_SRC)
-	@echo "    SRC:            "$(SRC)
-	@echo "    APP_AR:         "$(APP_AR)
+	@echo "    TARGET:           "$(TARGET)
+	@echo "    TARGET_DEVICE:    "$(TARGET_DEVICE)
+	@echo "    TARGET_OUT:       "$(TARGET_OUT)
+	@echo "    USER_LIBS:        "$(USER_LIBS)
+	@echo "    BUILD_DIR_BASE:   "$(BUILD_DIR_BASE)
+	@echo "    BUILD_DIR:        "$(BUILD_DIR)
+	@echo "    FW_DIR_BASE:      "$(FW_DIR_BASE)
+	@echo "    SRC_DIR:          "$(SRC_DIR)
+	@echo "    C_SRC:            "$(C_SRC)
+	@echo "    CPP_SRC:          "$(CPP_SRC)
+	@echo "    ASM_SRC:          "$(ASM_SRC)
+	@echo "    SRC:              "$(SRC)
+	@echo "    APP_AR:           "$(APP_AR)
 	@echo "-----------------------------------------"
-	@echo "    INCDIR:         "$(INCDIR)
-	@echo "    EXTRA_INCDIR:   "$(EXTRA_INCDIR)
-	@echo "    MODULE_INCDIR:  "$(MODULE_INCDIR)
+	@echo "    INCDIR:           "$(INCDIR)
+	@echo "    EXTRA_INCDIR:     "$(EXTRA_INCDIR)
+	@echo "    MODULE_INCDIR:    "$(MODULE_INCDIR)
+	@echo "    EXTRA_LD_SCRIPTS: "$(EXTRA_LD_SCRIPTS)
 	@echo "-----------------------------------------"
-	@echo "    C_OBJ:          "$(C_OBJ)
-	@echo "    CPP_OBJ:        "$(CPP_OBJ)
-	@echo "    ASM_OBJ:        "$(ASM_OBJ)
-	@echo "    OBJ:            "$(OBJ)
-	@echo "    DEPS:           "$(DEPS)
+	@echo "    C_OBJ:            "$(C_OBJ)
+	@echo "    CPP_OBJ:          "$(CPP_OBJ)
+	@echo "    ASM_OBJ:          "$(ASM_OBJ)
+	@echo "    OBJ:              "$(OBJ)
+	@echo "    DEPS:             "$(DEPS)
 	@echo "-----------------------------------------"
 
 # --------------------------------------------------------------------------

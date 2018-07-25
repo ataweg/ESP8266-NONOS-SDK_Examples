@@ -7,6 +7,8 @@ TARGET          = wps2_enterprise
 
 BUILDDIR := F:/working/Build/Projects/Evaluation/ESP8266/Firmware/ESP8266_NONOS_SDK_examples/$(TARGET)
 
+MAKEFILE_DIR    = $(THISDIR)/../_makefiles/
+
 # --------------------------------------------------------------------------
 # some definitions for the current project
 
@@ -25,12 +27,10 @@ BUILD_DIR_BASE  = $(BUILDDIR)/build/
 # firmware directory
 FW_DIR_BASE     = $(BUILDDIR)/firmware/
 
-MAKEFILE_DIR    = $(THISDIR)/../_makefiles/
-
 # --------------------------------------------------------------------------
 
-DEBUG_MEMLEAK    ?= no
-DEBUG_HEAP_INFO  ?= no
+RELEASE          ?= no
+DEBUG_USE_GDB    ?= no
 
 # --------------------------------------------------------------------------
 
@@ -66,13 +66,15 @@ include	$(MAKEFILE_DIR)settings.mk
 # Individual project settings (Optional)
 
 # TARGET_DEVICE ?= NodeMCU
-# TARGET_DEVICE ?= NodeMCU_Modul
-TARGET_DEVICE  ?= ESP-201
+  TARGET_DEVICE ?= NodeMCU-Modul
+# TARGET_DEVICE ?= ESP-201
+
+DEBUG_USE_GDB ?= no
 
 ifeq ("$(TARGET_DEVICE)","NodeMCU")
    SPI_FLASH_SIZE = 4MB-c1
 else
-   ifeq ("$(TARGET_DEVICE)","NodeMCU_Modul")
+   ifeq ("$(TARGET_DEVICE)","NodeMCU-Modul")
       SPI_FLASH_SIZE = 4MB-c1
    else
       ifeq ("$(TARGET_DEVICE)","ESP-201")
@@ -90,9 +92,9 @@ endif
 # 'ota'      - Combined firmware blob with OTA upgrades.
 # Please do a 'make clean' after changing this.
 
- OUTPUT_TYPE=separate
-# OUTPUT_TYPE=combined
-# OUTPUT_TYPE=ota
+  OUTPUT_TYPE ?= combined
+# OUTPUT_TYPE ?= separate
+# OUTPUT_TYPE ?= ota
 
 define maplookup
 $(patsubst $(strip $(1)):%,%,$(filter $(strip $(1)):%,$(2)))
@@ -150,18 +152,13 @@ ifeq ("$(OUTPUT_TYPE)","ota")
    MAX_PROG_SIZE = $$(printf "0x%X" $$(($(INITDATAPOS)-0x10000 )))
 endif
 
-
 # --------------------------------------------------------------------------
 # Basic project settings
 
 # which modules (subdirectories) of the project to include in compiling
 MODULES	= user
 
-# USER_LIBS defined to forche rebuild on changes
-USER_LIBS +=
-
 INCDIR += include
-
 
 SDK_INCDIR += third_party/include \
               driver_lib/include
@@ -177,21 +174,10 @@ LIBS   += at hal wpa2 json upgrade mbedtls airkiss
 LIBS += \
         driver
 
-# additonal setting for the current project
-LDFLAGS += -g -O2
-CFLAGS  += \
-           -DICACHE_FLASH \
-           -DMQTT_DEBUG_ON \
-           -DDEBUG_ON \
-           -DUSE_OPTIMIZE_PRINTF
-
-LDFLAGS += \
-           -L$(BUILD_DIR_BASE)
-
 ifeq ("$(TARGET_DEVICE)","NodeMCU")
    CFLAGS       += -DNODEMCU
 else
-   ifeq ("$(TARGET_DEVICE)","NodeMCU_Modul")
+   ifeq ("$(TARGET_DEVICE)","NodeMCU-Modul")
       CFLAGS       += -DNODEMCU_MODUL
    else
       ifeq ("$(TARGET_DEVICE)","ESP-201")
@@ -200,37 +186,35 @@ else
    endif
 endif
 
-# --------------------------------------------------------------------------
-# setup build time and buils number
+CFLAGS  += \
+           -DICACHE_FLASH \
+           -DUSE_OPTIMIZE_PRINTF
 
-# # Name of text file containing build number.
-# BUILD_NUMBER_FILE=$(SOURCE_DIR_BASE)build-number.txt
-#
-# EXTRA_LDFLAGS = $(BUILD_NUMBER_LDFLAGS)
-# COMPONENT_LINKER_DEPS += $(BUILD_NUMBER_FILE)
-
-ifeq ("$(DEBUG_MEMLEAK)","yes")
-    CFLAGS += -DDBG_MEMLEAKS \
-              -DMEMLEAK_DEBUG
-endif
-
-ifeq ("$(DEBUG_HEAP_INFO)","yes")
-    CFLAGS += -DDBG_HEAP_INFO
-endif
-
-ifeq ("$(ESPFS_POS)","")
-   # No hardcoded espfs position: link it in with the binaries.
-   LIBS += webpages-espfs
+ifeq ("$(RELEASE)","yes")
+   CFLAGS  +=
 else
-   # Hardcoded espfs location: Pass espfs position to rest of code
-   CFLAGS += -DESPFS_POS=$(ESPFS_POS) -DESPFS_SIZE=$(ESPFS_SIZE)
+   CFLAGS  += \
+              -DMQTT_DEBUG_ON \
+              -DDEBUG_ON
 endif
 
-ifeq ("$(OUTPUT_TYPE)","ota")
-   CFLAGS += -DOTA_FLASH_SIZE_K=$(ESP_SPI_FLASH_SIZE_K)
-endif
+# --------------------------------------------------------------------------
+# additonal setting for the current project
 
-CFLAGS += -DINITDATAPOS=$(INITDATAPOS) -DBLANKPOS=$(BLANKPOS)
+LDFLAGS += -g -O2
+
+LDFLAGS += \
+           -L$(BUILD_DIR_BASE)
+
+# --------------------------------------------------------------------------
+#
+
+ifeq ("$(DEBUG_USE_GDB)", "yes")
+  MODULES      += gdbstub
+  INCDIR       += gdbstub
+  EXTRA_INCDIR += C:/SysGCC/esp8266/HAL/SRC/include
+  LDFLAGS      += -ggdb
+endif
 
 # --------------------------------------------------------------------------
 # Define default target. If not defined here the one in the included Makefile is used as the default one.
@@ -271,5 +255,3 @@ help:
 	@echo "make rebuild      "
 	@echo "make showdirs     "
 
-# # Include build number rules.
-# include $(MAKEFILE_DIR)buildnumber.mk
